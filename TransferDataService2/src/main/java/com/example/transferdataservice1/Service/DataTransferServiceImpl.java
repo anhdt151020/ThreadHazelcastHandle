@@ -65,10 +65,11 @@ public class DataTransferServiceImpl implements DataTransferService{
     public void clearCache(DataTransferModel dataTransferModel) {
         IMap<String, Object> dataMap = hazelcastInstanceConfiguration.dataMap();
         String key = "data_key_" + dataTransferModel.getUsername();
+        log.info("CLEAR CACHE REQUEST WITH KEY: {}", key);
         DataTransferModel temp = (DataTransferModel) dataMap.get(key);
 
         if (temp != null) {
-            log.info("CLEAR CACHE WITH KEY: {}", key);
+            log.info("CLEARING CACHE WITH KEY: {}", key);
             dataMap.evict(key);
             log.info("CACHE IS CLEARED !!!");
         }

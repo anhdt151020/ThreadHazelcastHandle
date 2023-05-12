@@ -6,4 +6,6 @@ public interface CacheEventHandleService {
     void newEntryCacheHandle(DataTransferModel dataTransferModel, boolean flag);
 
     void updateEntryCacheHandle(DataTransferModel dataTransferModel);
+
+    void evictEntryCacheHandle(DataTransferModel dataTransferModel);
 }

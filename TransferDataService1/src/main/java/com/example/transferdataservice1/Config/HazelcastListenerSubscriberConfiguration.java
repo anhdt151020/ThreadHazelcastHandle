@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class HazelcastListenerSubscriberConfiguration implements
         EntryAddedListener<String, Object>,
         EntryUpdatedListener<String, Object>,
-        EntryEvictedListener<String, Object> {
+        EntryEvictedListener<String, Object>{
 
     private final CacheEventHandleService cacheEventHandleService;
     @Override
@@ -38,7 +38,8 @@ public class HazelcastListenerSubscriberConfiguration implements
 
     @Override
     public void entryEvicted(EntryEvent<String, Object> event) {
-        DataTransferModel dataTransferModel = (DataTransferModel) event.getValue();
-        String threadId = dataTransferModel.getThreadId();
+        DataTransferModel dataTransferModel = (DataTransferModel) event.getOldValue();
+        log.info("ALERT, DATA EVICTED TO CACHE {}", event);
+        cacheEventHandleService.evictEntryCacheHandle(dataTransferModel);
     }
 }
