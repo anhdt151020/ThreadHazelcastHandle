@@ -25,7 +25,7 @@ public class HazelcastListenerSubscriberConfiguration implements
     @Override
     public void entryAdded(EntryEvent<String, Object> event) {
         DataTransferModel dataTransferModel = (DataTransferModel) event.getValue();
-        log.info("ALERT, NEW DATA ADD TO CACHE {}", dataTransferModel);
+        log.info("ALERT, NEW DATA ADD TO CACHE {}", dataTransferModel.toString());
         cacheEventHandleService.newEntryCacheHandle(dataTransferModel, Boolean.TRUE);
     }
 
