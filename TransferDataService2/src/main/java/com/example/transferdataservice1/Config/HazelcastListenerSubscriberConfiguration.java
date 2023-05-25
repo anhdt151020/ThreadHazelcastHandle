@@ -26,19 +26,23 @@ public class HazelcastListenerSubscriberConfiguration implements
     public void entryAdded(EntryEvent<String, Object> event) {
         DataTransferModel dataTransferModel = (DataTransferModel) event.getValue();
         log.info("ALERT, NEW DATA ADD TO CACHE {}", dataTransferModel);
-        cacheEventHandleService.newEntryCacheHandle(dataTransferModel, Boolean.TRUE);
+        try {
+            cacheEventHandleService.newEntryCacheHandle(dataTransferModel, Boolean.TRUE);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public void entryUpdated(EntryEvent<String, Object> event) {
-        DataTransferModel dataTransferModel = (DataTransferModel) event.getValue();
+        DataTransferModel dataTransferModel = (DataTransferModel) event.getOldValue();
         log.info("ALERT, NEW DATA UPDATE TO CACHE {}", dataTransferModel);
         cacheEventHandleService.updateEntryCacheHandle(dataTransferModel);
     }
 
     @Override
     public void entryEvicted(EntryEvent<String, Object> event) {
-        DataTransferModel dataTransferModel = (DataTransferModel) event.getValue();
+        DataTransferModel dataTransferModel = (DataTransferModel) event.getOldValue();
         log.info("ALERT, DATA EVICTED TO CACHE {}", event);
         cacheEventHandleService.evictEntryCacheHandle(dataTransferModel);
     }

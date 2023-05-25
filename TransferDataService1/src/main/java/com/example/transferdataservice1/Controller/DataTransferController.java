@@ -18,7 +18,7 @@ public class DataTransferController {
 
 
     @PostMapping("/make")
-    public ResponseEntity<DataTransferModel> makeDataTransfer(@RequestBody DataTransferModel dataTransferModel){
+    public ResponseEntity<DataTransferModel> makeDataTransfer(@RequestBody DataTransferModel dataTransferModel) throws InterruptedException {
         log.info("MAKE DATA FOR TRANSFER FROM {} - DATA {}", CLASS_NAME, dataTransferModel);
         return ResponseEntity.ok(dataTransferService.makeDataTransfer(dataTransferModel));
     }

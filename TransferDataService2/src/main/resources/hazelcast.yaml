@@ -3,3 +3,6 @@ hazelcast:
     join:
       multicast:
         enabled: true
+  queue:
+    data-queue:
+      max-size: 10

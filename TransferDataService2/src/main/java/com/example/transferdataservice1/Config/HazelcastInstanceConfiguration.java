@@ -1,8 +1,11 @@
 package com.example.transferdataservice1.Config;
 
+import com.example.transferdataservice1.Domain.DataTransferModel;
+import com.hazelcast.collection.IQueue;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.map.IMap;
+import com.hazelcast.topic.ITopic;
 import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
@@ -24,9 +27,19 @@ public class HazelcastInstanceConfiguration {
         return hazelcastInstance.getMap("data-map");
     }
 
-    public IMap<String, Object> authMap(){
-        return hazelcastInstance.getMap("auth-map");
+    public IMap<String, Object> keyMap(){
+        return hazelcastInstance.getMap("key-map");
     }
+
+    public ITopic<DataTransferModel> dataTopic(){
+        return hazelcastInstance.getTopic("data-topic");
+    }
+
+    public IQueue<DataTransferModel> dataQueue(){
+        return hazelcastInstance.getQueue("data-queue");
+    }
+
+
 
     @Bean
     public void listenerConfig(){

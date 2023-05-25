@@ -5,16 +5,15 @@ import com.example.transferdataservice1.Domain.DataTransferModel;
 import com.example.transferdataservice1.Repository.DataTransferModelRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
+import org.apache.commons.lang.ObjectUtils;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -23,44 +22,51 @@ import java.util.concurrent.Executors;
 public class CacheEventHandleServiceImpl implements CacheEventHandleService{
     private final DataTransferModelRepository dataTransferModelRepository;
     private final HazelcastInstanceConfiguration hazelcastInstanceConfiguration;
-    ExecutorService executorService = Executors.newFixedThreadPool(5);
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
+    final String SERVICE_NAME = "TRANSFER_2";
     DataTransferModel res;
 
 
     @Override
-    public void newEntryCacheHandle(DataTransferModel dataTransferModel, boolean flag) {
-
-        res = dataTransferModel;
+    @Async
+    public void newEntryCacheHandle(DataTransferModel dataTransferModel, boolean flag) throws InterruptedException {
         log.info("HANDLING ENTRY CACHE");
-        MyRunnable myRunnable = new MyRunnable(dataTransferModel);
-        executorService.execute(myRunnable);
+        res = hazelcastInstanceConfiguration.dataQueue().take();
+        log.info("res = {}", res);
+        hazelcastInstanceConfiguration
+                .keyMap().put(SERVICE_NAME+"_"+res.getId()+"_"+res.getUsername(), "Running", 32000, TimeUnit.MILLISECONDS);
+        log.info("2 KEY = {}", SERVICE_NAME+"_"+res.getId()+"_"+res.getUsername());
+        executorService.execute(new MyRunnable(res));
     }
 
     @Override
     public void updateEntryCacheHandle(DataTransferModel dataTransferModel) {
         log.info("HANDLING UPDATE CACHE");
-        Set<Thread> setOfThread = Thread.getAllStackTraces().keySet();
-        setOfThread.stream()
-                .filter(o->
-                    //                    log.info("Thread id = {}", res.getThreadId());
-                    String.valueOf(o.getId()).equals(res.getThreadId())
-                )
-                .findAny()
-                .ifPresent(Thread::interrupt);
+        checkStateAndInterrupt(dataTransferModel);
     }
 
     @Override
     @Async
     public void evictEntryCacheHandle(DataTransferModel dataTransferModel) {
         log.info("HANDLING EVICT CACHE");
-        Set<Thread> setOfThread = Thread.getAllStackTraces().keySet();
-        setOfThread.stream()
-                .filter(o->
-                        //                    log.info("Thread id = {}", res.getThreadId());
-                        String.valueOf(o.getId()).equals(res.getThreadId())
-                )
-                .findAny()
-                .ifPresent(Thread::interrupt);
+        checkStateAndInterrupt(dataTransferModel);
+    }
+
+    private void checkStateAndInterrupt(DataTransferModel dataTransferModel) {
+        log.info("2 KEY CHECK = {}",SERVICE_NAME+"_"+ dataTransferModel.getId()+"_"+dataTransferModel.getUsername());
+        String state = (String) hazelcastInstanceConfiguration
+                .keyMap().get(SERVICE_NAME+"_"+dataTransferModel.getId()+"_"+dataTransferModel.getUsername());
+        log.info("2 state CHECK = {}", state);
+        if (null != state) {
+            Set<Thread> setOfThread = Thread.getAllStackTraces().keySet();
+            setOfThread.stream()
+                    .filter(o ->
+                            //log.info("Thread id = {}", res.getThreadId());
+                            String.valueOf(o.getId()).equals(res.getThreadId())
+                    )
+                    .findAny()
+                    .ifPresent(Thread::interrupt);
+        }
     }
 
     class MyRunnable implements Runnable {
@@ -75,7 +81,7 @@ public class CacheEventHandleServiceImpl implements CacheEventHandleService{
                 this.dataTransferModel.setThreadId(String.valueOf(Thread.currentThread().getId()));
                 log.info("Running Thread id = {}", res.getThreadId());
                 log.info("sleeping");
-                Thread.sleep(30000);
+                Thread.sleep(32000);
                 log.info("wakeup HERE !!!!");
 
                 String key = "data_key_" + this.dataTransferModel.getUsername();

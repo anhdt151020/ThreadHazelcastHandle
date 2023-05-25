@@ -21,7 +21,7 @@ public class DataTransferServiceImpl implements DataTransferService{
     private final DataTransferModelRepository dataTransferModelRepository;
     private final HazelcastInstanceConfiguration hazelcastInstanceConfiguration;
     @Override
-    public DataTransferModel makeDataTransfer(DataTransferModel dataTransferModel) {
+    public DataTransferModel makeDataTransfer(DataTransferModel dataTransferModel) throws InterruptedException {
         IMap<String, Object> dataMap = hazelcastInstanceConfiguration.dataMap();
         String key = "data_key_" + dataTransferModel.getUsername();
         log.info("CALLING MAKE DATA Class {} data key {}", CLASS_NAME, key);
@@ -31,8 +31,12 @@ public class DataTransferServiceImpl implements DataTransferService{
             return temp;
         } else {
             log.info("Class {} data is NULL with key {}, PUSHING CACHE", CLASS_NAME, key);
+            log.info("Make a call to QUEUE");
+            hazelcastInstanceConfiguration.dataQueue().put(dataTransferModel);
+            log.info("=================================================================================================");
             dataMap.put(key, dataTransferModel);
             log.info("PUSHED CACHE with key {}", key);
+
         }
         return null;
     }
@@ -54,6 +58,7 @@ public class DataTransferServiceImpl implements DataTransferService{
             log.info("REQUEST SAVE DATA TO DATABASE");
             DataTransferModel res = dataTransferModelRepository.save(dataTransferModel);
             log.info("SAVED DATA TO DATABASE");
+            dataMap.evict(key);
             return res;
         } else {
             log.info("INSERT DATA FIRST !!!");

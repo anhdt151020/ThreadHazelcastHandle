@@ -3,6 +3,8 @@ package com.example.transferdataservice1.Service;
 import com.example.transferdataservice1.Config.HazelcastInstanceConfiguration;
 import com.example.transferdataservice1.Domain.DataTransferModel;
 import com.example.transferdataservice1.Repository.DataTransferModelRepository;
+import com.hazelcast.topic.Message;
+import com.hazelcast.topic.MessageListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -23,44 +26,48 @@ import java.util.concurrent.Executors;
 public class CacheEventHandleServiceImpl implements CacheEventHandleService{
     private final DataTransferModelRepository dataTransferModelRepository;
     private final HazelcastInstanceConfiguration hazelcastInstanceConfiguration;
-    ExecutorService executorService = Executors.newFixedThreadPool(5);
+    final String SERVICE_NAME = "TRANSFER_1";
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
     DataTransferModel res;
 
 
     @Override
-    public void newEntryCacheHandle(DataTransferModel dataTransferModel, boolean flag) {
-
-        res = dataTransferModel;
+    @Async
+    public void newEntryCacheHandle(DataTransferModel dataTransferModel, boolean flag) throws InterruptedException {
         log.info("HANDLING ENTRY CACHE");
-        MyRunnable myRunnable = new MyRunnable(dataTransferModel);
-        executorService.execute(myRunnable);
+        res = hazelcastInstanceConfiguration.dataQueue().take();
+        log.info("res = {}", res);
+        hazelcastInstanceConfiguration
+                .keyMap().put(SERVICE_NAME+"_"+res.getId()+"_"+res.getUsername(), "Running", 32000, TimeUnit.MILLISECONDS);
+        executorService.execute(new MyRunnable(res));
     }
 
     @Override
     public void updateEntryCacheHandle(DataTransferModel dataTransferModel) {
         log.info("HANDLING UPDATE CACHE");
-        Set<Thread> setOfThread = Thread.getAllStackTraces().keySet();
-        setOfThread.stream()
-                .filter(o->
-                    //                    log.info("Thread id = {}", res.getThreadId());
-                    String.valueOf(o.getId()).equals(res.getThreadId())
-                )
-                .findAny()
-                .ifPresent(Thread::interrupt);
+        checkStateAndInterrupt(dataTransferModel);
     }
 
     @Override
     @Async
     public void evictEntryCacheHandle(DataTransferModel dataTransferModel) {
         log.info("HANDLING EVICT CACHE");
-        Set<Thread> setOfThread = Thread.getAllStackTraces().keySet();
-        setOfThread.stream()
-                .filter(o->
-                        //log.info("Thread id = {}", res.getThreadId());
-                        String.valueOf(o.getId()).equals(res.getThreadId())
-                )
-                .findAny()
-                .ifPresent(Thread::interrupt);
+        checkStateAndInterrupt(dataTransferModel);
+    }
+
+    private void checkStateAndInterrupt(DataTransferModel dataTransferModel) {
+        String state = (String) hazelcastInstanceConfiguration
+                .keyMap().get(SERVICE_NAME+"_"+dataTransferModel.getId()+"_"+dataTransferModel.getUsername());
+        if (state != null) {
+            Set<Thread> setOfThread = Thread.getAllStackTraces().keySet();
+            setOfThread.stream()
+                    .filter(o ->
+                            //log.info("Thread id = {}", res.getThreadId());
+                            String.valueOf(o.getId()).equals(res.getThreadId())
+                    )
+                    .findAny()
+                    .ifPresent(Thread::interrupt);
+        }
     }
 
     class MyRunnable implements Runnable {
